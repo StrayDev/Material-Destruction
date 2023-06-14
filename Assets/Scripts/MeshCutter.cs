@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class MeshCutter 
+public class MeshCutter
 {
     //
 
@@ -21,9 +21,6 @@ public class MeshCutter
         var triangles = mesh.triangles;
         var vertices = mesh.vertices;
 
-        // position used for side checks
-        var w = target.transform.position;
-
         // Prealocate indices
         var i0 = 0;
         var i1 = 0;
@@ -35,10 +32,12 @@ public class MeshCutter
         Vector3 v2;
 
         // Preallocate intersecting points
-        Vector3? p0;
-        Vector3? p1;
-        Vector3? p2;
+        Vector3 p0;
+        Vector3 p1;
+        Vector3 p2;
 
+        // 
+        Plane planeInObjectSpace = TransformPlaneToMatrix(plane, target.worldToLocalMatrix);
 
         // Iterate over each triangle in the mesh
         for (var i = 0; i < triangles.Length; i += 3)
@@ -49,84 +48,106 @@ public class MeshCutter
             i2 = triangles[i + 2];
 
             // Retrieve the vertices of the triangle using the indices
-            v0 = vertices[i0];      
+            v0 = vertices[i0];
             v1 = vertices[i1];
             v2 = vertices[i2];
 
             // Check if the triangle intersects the cutting plane
-            if (TriangleIntersectsPlane(v0 + w, v1 + w, v2 + w, plane))
+            if (TriangleIntersectsPlaneInObjectSpace(plane, v0, v1, v2, target.worldToLocalMatrix))
             {
                 // Calculate the intersection points between the triangle edges and the cutting plane
-                CalculateTrianglePlaneIntersections(v0, v1, v2, plane, out p0, out p1, out p2);
+                CalculateTrianglePlaneIntersections(v0, v1, v2, planeInObjectSpace, out p0, out p1, out p2);
 
-                if(!p0.HasValue)
+                Vector3 intersect1 = default;
+                Vector3 intersect2 = default;
+
+                if(p0 == Vector3.zero)
                 {
-                    var s1 = plane.GetSide(v2) ? md1 : md2;
-
-                    s1.vertices.Add(v2);
-                    s1.vertices.Add(p2.Value);
-                    s1.vertices.Add(p1.Value);
-
-                    s1.triangles.Add(s1.vertices.Count - 3);
-                    s1.triangles.Add(s1.vertices.Count - 2);
-                    s1.triangles.Add(s1.vertices.Count - 1);
-
-                    var s2 = !plane.GetSide(v2) ? md1 : md2;
-
-                    s2.vertices.Add(v0);
-                    s2.vertices.Add(v1);
-                    s2.vertices.Add(p2.Value);
-                     
-                    s2.triangles.Add(s2.vertices.Count - 3);
-                    s2.triangles.Add(s2.vertices.Count - 2);
-                    s2.triangles.Add(s2.vertices.Count - 1);
-                     
-                    s2.vertices.Add(v1);
-                    s2.vertices.Add(p1.Value);
-                    s2.vertices.Add(p2.Value);
-                     
-                    s2.triangles.Add(s2.vertices.Count - 3);
-                    s2.triangles.Add(s2.vertices.Count - 2);
-                    s2.triangles.Add(s2.vertices.Count - 1);
+                    intersect1 = p2;
+                    intersect2 = p1;
+                }
+                if (p1 == Vector3.zero)
+                {
+                    intersect1 = p0;
+                    intersect2 = p2;
+                }
+                if (p2 == Vector3.zero)
+                {
+                    intersect1 = p1;
+                    intersect2 = p0;
                 }
 
-                if (!p1.HasValue)
+                // get sides 
+                var v0_side = planeInObjectSpace.GetSide(v0);
+                var v1_side = planeInObjectSpace.GetSide(v1);
+                var v2_side = planeInObjectSpace.GetSide(v2);
+
+                Vector3 solo;
+                Vector3 pair1;
+                Vector3 pair2;
+
+                if (v0_side != v1_side)
                 {
-                    var s1 = plane.GetSide(v0) ? md1 : md2;
-
-                    s1.vertices.Add(v0);
-                    s1.vertices.Add(p0.Value);
-                    s1.vertices.Add(p2.Value);
-
-                    s1.triangles.Add(s1.vertices.Count - 3);
-                    s1.triangles.Add(s1.vertices.Count - 2);
-                    s1.triangles.Add(s1.vertices.Count - 1);
-
-                    var s2 = !plane.GetSide(v0) ? md1 : md2;
-
-                    s2.vertices.Add(p0.Value);
-                    s2.vertices.Add(v2);
-                    s2.vertices.Add(p2.Value);
-
-                    s2.triangles.Add(s2.vertices.Count - 3);
-                    s2.triangles.Add(s2.vertices.Count - 2);
-                    s2.triangles.Add(s2.vertices.Count - 1);
-
-                    s2.vertices.Add(v2);
-                    s2.vertices.Add(p0.Value);
-                    s2.vertices.Add(v1);
-
-                    s2.triangles.Add(s2.vertices.Count - 3);
-                    s2.triangles.Add(s2.vertices.Count - 2);
-                    s2.triangles.Add(s2.vertices.Count - 1);
+                    if(v0_side != v2_side)
+                    {
+                        solo = v0;
+                        pair1 = v1;
+                        pair2 = v2;
+                    }
+                    else
+                    {
+                        solo = v1;
+                        pair1 = v2;
+                        pair2 = v0;
+                    }
                 }
+                else
+                {
+                    solo = v2;
+                    pair1 = v0;
+                    pair2 = v1;
+                }
+
+                // create the solo triangle
+                var side1 = planeInObjectSpace.GetSide(solo) ? md1 : md2;
+
+                side1.vertices.Add(solo);
+                side1.vertices.Add(intersect1);
+                side1.vertices.Add(intersect2);
+                    
+                side1.triangles.Add(side1.vertices.Count - 3);
+                side1.triangles.Add(side1.vertices.Count - 2);
+                side1.triangles.Add(side1.vertices.Count - 1);
+
+                // create the pair of triangles
+                var side2 = planeInObjectSpace.GetSide(pair1) ? md1 : md2;
+
+                side2.vertices.Add(pair1);
+                side2.vertices.Add(intersect2);
+                side2.vertices.Add(intersect1);
+                    
+                side2.triangles.Add(side2.vertices.Count - 3);
+                side2.triangles.Add(side2.vertices.Count - 2);
+                side2.triangles.Add(side2.vertices.Count - 1);
+
+                side2.vertices.Add(pair2);
+                side2.vertices.Add(intersect2);
+                side2.vertices.Add(pair1);
+
+                side2.triangles.Add(side2.vertices.Count - 3);
+                side2.triangles.Add(side2.vertices.Count - 2);
+                side2.triangles.Add(side2.vertices.Count - 1);
+
+
+                // assign new triangles to correct side
 
                 continue;
             }
 
             // Triangle does not intersect add it to list based on if it is above or below the plane
-            var side = plane.GetSide(v0 + target.position) ? md1 : md2;
-                   
+            var centre = (v0 + v1 + v2) / 3;
+            var side = planeInObjectSpace.GetSide(centre) ? md1 : md2;
+
             side.vertices.Add(v0);
             side.vertices.Add(v1);
             side.vertices.Add(v2);
@@ -138,52 +159,70 @@ public class MeshCutter
         }
 
         // Set the vertices and triangles for mesh1 and mesh2
-        mesh1 = new Mesh
-        {
-            vertices = md1.vertices.ToArray(),
-            triangles = md1.triangles.ToArray(),
-        };
+        mesh1 = new Mesh();
+        mesh1.vertices = md1.vertices.ToArray();
+        mesh1.triangles = md1.triangles.ToArray();
         mesh1.RecalculateNormals();
 
-        mesh2 = new Mesh
-        {
-            vertices = md2.vertices.ToArray(),
-            triangles = md2.triangles.ToArray(),
-        };
+        mesh2 = new Mesh();
+        mesh2.vertices = md2.vertices.ToArray();
+        mesh2.triangles = md2.triangles.ToArray();
         mesh2.RecalculateNormals();
     }
 
-    private static void CalculateTrianglePlaneIntersections(Vector3 v0, Vector3 v1, Vector3 v2, Plane plane, out Vector3? point0, out Vector3? point1, out Vector3? point2)
+    private static void GroupPoints(Plane plane, Vector3 v0, Vector3 v1, Vector3 v2, out Vector3 sv, out Vector3 pv1, out Vector3 pv2)
     {
-        point0 = null;
-        point1 = null;
-        point2 = null;
+        var v0_side = plane.GetSide(v0);
+        var v1_side = plane.GetSide(v1);
+        var v2_side = plane.GetSide(v2);
+
+        sv = Vector3.zero;
+        pv1 = Vector3.zero;
+        pv2 = Vector3.zero;
+
+        if (v0_side == v1_side)
+        {
+            sv = v2;
+            pv1 = v0;
+            pv2 = v1;
+        }
+
+        if (v1_side == v2_side)
+        {
+            sv = v0;
+            pv1 = v1;
+            pv2 = v2;
+        }
+
+        if (v2_side == v0_side)
+        {
+            sv = v1;
+            pv1 = v2;
+            pv2 = v0;
+        }
+
+    }
+
+    private static void CalculateTrianglePlaneIntersections(Vector3 v0, Vector3 v1, Vector3 v2, Plane plane, out Vector3 p0, out Vector3 p1, out Vector3 p2)
+    {
+        p0 = Vector3.zero;
+        p1 = Vector3.zero;
+        p2 = Vector3.zero;
 
         // Calculate the distances from each vertex to the plane
-        var distance0 = plane.GetDistanceToPoint(v0);
-        var distance1 = plane.GetDistanceToPoint(v1);
-        var distance2 = plane.GetDistanceToPoint(v2);
+        var d0 = plane.GetDistanceToPoint(v0);
+        var d1 = plane.GetDistanceToPoint(v1);
+        var d2 = plane.GetDistanceToPoint(v2);
 
         // Check if each vertex is on a different side of the plane
-        var isIntersecting01 = (distance0 * distance1) < 0;
-        var isIntersecting12 = (distance1 * distance2) < 0;
-        var isIntersecting20 = (distance2 * distance0) < 0;
+        var result0 = (d0 * d1) < 0;
+        var result1 = (d1 * d2) < 0;
+        var result2 = (d2 * d0) < 0;
 
         // Calculate intersection points between the triangle edges and the cutting plane
-        if (isIntersecting01)
-        {
-            point0 = CalculateIntersectionPoint(v0, v1, plane);
-        }
-
-        if (isIntersecting12)
-        {
-            point1 = CalculateIntersectionPoint(v1, v2, plane);
-        }
-
-        if (isIntersecting20)
-        {
-            point2 = CalculateIntersectionPoint(v2, v0, plane);
-        }
+        if (result0) p0 = CalculateIntersectionPoint(v0, v1, plane);
+        if (result1) p1 = CalculateIntersectionPoint(v1, v2, plane);
+        if (result2) p2 = CalculateIntersectionPoint(v2, v0, plane);
     }
 
     private static Vector3 CalculateIntersectionPoint(Vector3 vertex1, Vector3 vertex2, Plane plane)
@@ -200,18 +239,18 @@ public class MeshCutter
     }
 
 
-    public static bool PlaneIntersectsMesh(Plane plane, Mesh mesh)
+    public static bool PlaneIntersectsMesh(Plane plane, Mesh mesh, Transform target)
     {
         var vertices = mesh.vertices;
         var triangles = mesh.triangles;
 
         for (var i = 0; i < triangles.Length; i += 3)
         {
-            var vertexA = vertices[triangles[i]];
-            var vertexB = vertices[triangles[i + 1]];
-            var vertexC = vertices[triangles[i + 2]];
+            var v0 = vertices[triangles[i]];
+            var v1 = vertices[triangles[i + 1]];
+            var v2 = vertices[triangles[i + 2]];
 
-            if (TriangleIntersectsPlane(vertexA, vertexB, vertexC, plane))
+            if (TriangleIntersectsPlaneInObjectSpace(plane, v0, v1, v2, target.worldToLocalMatrix))
             {
                 return true;
             }
@@ -220,23 +259,62 @@ public class MeshCutter
         return false;
     }
 
-    private static bool TriangleIntersectsPlane(Vector3 vertexA, Vector3 vertexB, Vector3 vertexC, Plane plane)
+    private static bool TriangleIntersectsPlaneInObjectSpace(Plane plane, Vector3 v0, Vector3 v1, Vector3 v2, Matrix4x4 worldToObjectMatrix)
     {
-        /*var distanceA = plane.GetDistanceToPoint(vertexA);
-        var distanceB = plane.GetDistanceToPoint(vertexB);
-        var distanceC = plane.GetDistanceToPoint(vertexC);
+        // Transform the plane from world space to object space
+        Plane planeInObjectSpace = TransformPlaneToMatrix(plane, worldToObjectMatrix);
 
-        // Check if the three vertices are on different sides of the plane
-        var isIntersecting = (distanceA > 0 && distanceB < 0 && distanceC < 0) ||
-                              (distanceA < 0 && distanceB > 0 && distanceC > 0);
-
-        return isIntersecting;*/
-
-        var a = plane.GetSide(vertexA);
-        var b = plane.GetSide(vertexB);
-        var c = plane.GetSide(vertexC);
-
-        return a != b || c != a || c != b;
+        // Perform the intersection test between the transformed plane and the triangle in object space
+        return TriangleIntersectsPlane(planeInObjectSpace, v0, v1, v2);
     }
+
+    private static Plane TransformPlaneToMatrix(Plane plane, Matrix4x4 matrix)
+    {
+        // Transform the plane's normal and distance components by the matrix
+        Vector3 normal = matrix.MultiplyVector(plane.normal).normalized;
+        float distance = plane.distance - Vector3.Dot(plane.normal, matrix.MultiplyPoint(Vector3.zero));
+
+        return new Plane(normal, distance);
+    }
+
+    private static bool TriangleIntersectsPlane(Plane plane, Vector3 v0, Vector3 v1, Vector3 v2)
+    {
+        // Check if any two vertices are on opposite sides of the plane
+        bool intersects = plane.GetSide(v0) != plane.GetSide(v1) ||
+                          plane.GetSide(v0) != plane.GetSide(v2) ||
+                          plane.GetSide(v1) != plane.GetSide(v2);
+
+        if (!intersects)
+        {
+            // Check for degenerate triangle (all vertices are collinear)
+            if (Vector3.Dot(Vector3.Cross(v1 - v0, v2 - v0), plane.normal) == 0f)
+            {
+                return false;
+            }
+
+            // Check for self-intersecting triangle
+            bool intersectsEdges = TriangleIntersectsEdge(v0, v1, v2, plane) ||
+                                   TriangleIntersectsEdge(v1, v2, v0, plane) ||
+                                   TriangleIntersectsEdge(v2, v0, v1, plane);
+
+            intersects = intersectsEdges;
+        }
+
+        return intersects;
+    }
+
+    private static bool TriangleIntersectsEdge(Vector3 v0, Vector3 v1, Vector3 v2, Plane plane)
+    {
+        // Check if the edge (v0-v1) intersects the plane
+        return (plane.GetSide(v0) != plane.GetSide(v1)) && IsPointBetweenPlanes(v0, v1, v2, plane);
+    }
+
+    private static bool IsPointBetweenPlanes(Vector3 p0, Vector3 p1, Vector3 p2, Plane plane)
+    {
+        // Check if a point (p2) is between two planes defined by (p0-p1)
+        return Vector3.Dot(plane.normal, p2 - p0) * Vector3.Dot(plane.normal, p2 - p1) <= 0f;
+    }
+
+   
 
 }
