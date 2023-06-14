@@ -36,6 +36,9 @@ public class MeshCutter
         Vector3 p1;
         Vector3 p2;
 
+        // keep all of th eintersecting pairs to create the fill
+        var intersection_pairs = new List<Vector3>();
+
         // 
         Plane planeInObjectSpace = TransformPlaneToMatrix(plane, target.worldToLocalMatrix);
 
@@ -61,7 +64,7 @@ public class MeshCutter
                 Vector3 intersect1 = default;
                 Vector3 intersect2 = default;
 
-                if(p0 == Vector3.zero)
+                if (p0 == Vector3.zero)
                 {
                     intersect1 = p2;
                     intersect2 = p1;
@@ -77,6 +80,10 @@ public class MeshCutter
                     intersect2 = p0;
                 }
 
+                // store these for later
+                intersection_pairs.Add(intersect1);
+                intersection_pairs.Add(intersect2);
+
                 // get sides 
                 var v0_side = planeInObjectSpace.GetSide(v0);
                 var v1_side = planeInObjectSpace.GetSide(v1);
@@ -88,7 +95,7 @@ public class MeshCutter
 
                 if (v0_side != v1_side)
                 {
-                    if(v0_side != v2_side)
+                    if (v0_side != v2_side)
                     {
                         solo = v0;
                         pair1 = v1;
@@ -114,7 +121,7 @@ public class MeshCutter
                 side1.vertices.Add(solo);
                 side1.vertices.Add(intersect1);
                 side1.vertices.Add(intersect2);
-                    
+
                 side1.triangles.Add(side1.vertices.Count - 3);
                 side1.triangles.Add(side1.vertices.Count - 2);
                 side1.triangles.Add(side1.vertices.Count - 1);
@@ -125,7 +132,7 @@ public class MeshCutter
                 side2.vertices.Add(pair1);
                 side2.vertices.Add(intersect2);
                 side2.vertices.Add(intersect1);
-                    
+
                 side2.triangles.Add(side2.vertices.Count - 3);
                 side2.triangles.Add(side2.vertices.Count - 2);
                 side2.triangles.Add(side2.vertices.Count - 1);
@@ -137,9 +144,6 @@ public class MeshCutter
                 side2.triangles.Add(side2.vertices.Count - 3);
                 side2.triangles.Add(side2.vertices.Count - 2);
                 side2.triangles.Add(side2.vertices.Count - 1);
-
-
-                // assign new triangles to correct side
 
                 continue;
             }
@@ -155,7 +159,55 @@ public class MeshCutter
             side.triangles.Add(side.vertices.Count - 3);
             side.triangles.Add(side.vertices.Count - 2);
             side.triangles.Add(side.vertices.Count - 1);
+        }
 
+        // get the center point
+        var center_point = Vector3.zero;
+        foreach (var p in intersection_pairs)
+        {
+            center_point += p;
+        }
+        center_point /= intersection_pairs.Count;
+
+        // fill missing area 
+        for (int i = 0; i < intersection_pairs.Count / 2; i++)
+        {
+            var index = i * 2;
+            var pair1 = intersection_pairs[index];
+            var pair2 = intersection_pairs[index + 1];
+
+            md1.vertices.Add(center_point);
+            md1.vertices.Add(pair1);
+            md1.vertices.Add(pair2);
+
+            md1.triangles.Add(md1.vertices.Count - 3);
+            md1.triangles.Add(md1.vertices.Count - 2);
+            md1.triangles.Add(md1.vertices.Count - 1);
+
+            md1.vertices.Add(pair1);
+            md1.vertices.Add(center_point);
+            md1.vertices.Add(pair2);
+
+            md1.triangles.Add(md1.vertices.Count - 3);
+            md1.triangles.Add(md1.vertices.Count - 2);
+            md1.triangles.Add(md1.vertices.Count - 1);
+
+            // 
+            md2.vertices.Add(center_point);
+            md2.vertices.Add(pair1);
+            md2.vertices.Add(pair2);
+
+            md2.triangles.Add(md2.vertices.Count - 3);
+            md2.triangles.Add(md2.vertices.Count - 2);
+            md2.triangles.Add(md2.vertices.Count - 1);
+
+            md2.vertices.Add(pair1);
+            md2.vertices.Add(center_point);
+            md2.vertices.Add(pair2);
+
+            md2.triangles.Add(md2.vertices.Count - 3);
+            md2.triangles.Add(md2.vertices.Count - 2);
+            md2.triangles.Add(md2.vertices.Count - 1);
         }
 
         // Set the vertices and triangles for mesh1 and mesh2
@@ -250,7 +302,7 @@ public class MeshCutter
             var v1 = vertices[triangles[i + 1]];
             var v2 = vertices[triangles[i + 2]];
 
-            if (TriangleIntersectsPlaneInObjectSpace(plane, v0, v1, v2, target.worldToLocalMatrix))
+            if (TriangleIntersectsPlane/*InObjectSpace*/(plane, v0, v1, v2/*, target.localToWorldMatrix*/))
             {
                 return true;
             }
@@ -315,6 +367,6 @@ public class MeshCutter
         return Vector3.Dot(plane.normal, p2 - p0) * Vector3.Dot(plane.normal, p2 - p1) <= 0f;
     }
 
-   
+
 
 }
