@@ -95,9 +95,9 @@ public class Slicer : MonoBehaviour
 
             // use the new meshes to create new GameObjects
             var t1 = CreateCutGameObject(obj, mesh1);
-            t1.position += plane.normal * .05f;
+            t1.position += plane.normal * .01f;
             var t2 = CreateCutGameObject(obj, mesh2);
-            t2.position -= plane.normal * .05f;
+            t2.position -= plane.normal * .01f;
 
             Destroy(obj.gameObject);
         }
@@ -105,41 +105,6 @@ public class Slicer : MonoBehaviour
         // hide line 
         line_start = Vector3.one * 999f;
         line_end = Vector3.one * 999f;
-    }
-
-    private Plane ConvertToObjectToWorld(Plane objectPlane, Transform objectTransform)
-    {
-        // Get the world-to-local matrix
-        Matrix4x4 worldToLocalMatrix = objectTransform.localToWorldMatrix;
-
-        // Transform the plane normal and distance from object to world space
-        Vector3 worldNormal = worldToLocalMatrix.MultiplyVector(objectPlane.normal);
-        float worldDistance = objectPlane.distance + Vector3.Dot(worldNormal, objectTransform.position);
-
-        // Create the world plane
-        Plane worldPlane = new Plane(worldNormal, worldDistance);
-
-        return worldPlane;
-    }
-
-    private Plane ConvertToWorldToLocal(Plane worldPlane, Transform localTransform)
-    {
-        // Get the local-to-world matrix
-        Matrix4x4 localToWorldMatrix = localTransform.worldToLocalMatrix;
-
-        // Transform the plane normal and distance from world to local space
-        Vector3 localNormal = localToWorldMatrix.MultiplyVector(worldPlane.normal);
-        float localDistance = worldPlane.distance - Vector3.Dot(localNormal, localTransform.position);
-
-        // Create the local plane
-        Plane localPlane = new Plane(localNormal, localDistance);
-
-        return localPlane;
-    }
-
-    private Vector3 GetMousePosition()
-    {
-        return _camera.ScreenToWorldPoint(Input.mousePosition);
     }
 
     private bool TryGetMeshComponents(GameObject target, out MeshFilter filter, out MeshRenderer renderer)
@@ -159,8 +124,8 @@ public class Slicer : MonoBehaviour
         obj.AddComponent<MeshFilter>().mesh = mesh;
         obj.AddComponent<MeshRenderer>().material = target.GetComponent<MeshRenderer>().material;
 
-       // obj.AddComponent<MeshCollider>().convex = true;
-        //obj.AddComponent<Rigidbody>();
+        obj.AddComponent<MeshCollider>().convex = true;
+        obj.AddComponent<Rigidbody>();
 
         return obj.transform;
     }
