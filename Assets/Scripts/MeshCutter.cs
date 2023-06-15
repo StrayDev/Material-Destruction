@@ -40,7 +40,7 @@ public class MeshCutter
         var intersection_pairs = new List<Vector3>();
 
         // 
-        Plane planeInObjectSpace = TransformPlaneToMatrix(plane, target.worldToLocalMatrix);
+        //Plane planeInObjectSpace = TransformPlaneToMatrix(plane, target.worldToLocalMatrix);
 
         // Iterate over each triangle in the mesh
         for (var i = 0; i < triangles.Length; i += 3)
@@ -56,10 +56,10 @@ public class MeshCutter
             v2 = vertices[i2];
 
             // Check if the triangle intersects the cutting plane
-            if (TriangleIntersectsPlaneInObjectSpace(plane, v0, v1, v2, target.worldToLocalMatrix))
+            if (TriangleIntersectsPlane(plane, v0, v1, v2))
             {
                 // Calculate the intersection points between the triangle edges and the cutting plane
-                CalculateTrianglePlaneIntersections(v0, v1, v2, planeInObjectSpace, out p0, out p1, out p2);
+                CalculateTrianglePlaneIntersections(v0, v1, v2, plane, out p0, out p1, out p2);
 
                 Vector3 intersect1 = default;
                 Vector3 intersect2 = default;
@@ -85,9 +85,9 @@ public class MeshCutter
                 intersection_pairs.Add(intersect2);
 
                 // get sides 
-                var v0_side = planeInObjectSpace.GetSide(v0);
-                var v1_side = planeInObjectSpace.GetSide(v1);
-                var v2_side = planeInObjectSpace.GetSide(v2);
+                var v0_side = plane.GetSide(v0);
+                var v1_side = plane.GetSide(v1);
+                var v2_side = plane.GetSide(v2);
 
                 Vector3 solo;
                 Vector3 pair1;
@@ -116,7 +116,7 @@ public class MeshCutter
                 }
 
                 // create the solo triangle
-                var side1 = planeInObjectSpace.GetSide(solo) ? md1 : md2;
+                var side1 = plane.GetSide(solo) ? md1 : md2;
 
                 side1.vertices.Add(solo);
                 side1.vertices.Add(intersect1);
@@ -127,7 +127,7 @@ public class MeshCutter
                 side1.triangles.Add(side1.vertices.Count - 1);
 
                 // create the pair of triangles
-                var side2 = planeInObjectSpace.GetSide(pair1) ? md1 : md2;
+                var side2 = plane.GetSide(pair1) ? md1 : md2;
 
                 side2.vertices.Add(pair1);
                 side2.vertices.Add(intersect2);
@@ -150,7 +150,7 @@ public class MeshCutter
 
             // Triangle does not intersect add it to list based on if it is above or below the plane
             var centre = (v0 + v1 + v2) / 3;
-            var side = planeInObjectSpace.GetSide(centre) ? md1 : md2;
+            var side = plane.GetSide(centre) ? md1 : md2;
 
             side.vertices.Add(v0);
             side.vertices.Add(v1);
@@ -302,7 +302,7 @@ public class MeshCutter
             var v1 = vertices[triangles[i + 1]];
             var v2 = vertices[triangles[i + 2]];
 
-            if (TriangleIntersectsPlane/*InObjectSpace*/(plane, v0, v1, v2/*, target.localToWorldMatrix*/))
+            if (TriangleIntersectsPlane(plane, v0, v1, v2))
             {
                 return true;
             }

@@ -37,26 +37,37 @@ public class Slicer : MonoBehaviour
     private void Update()
     {
         var m_pos = Input.mousePosition;
-        m_pos.z = 1;
 
-        if (Input.GetMouseButtonDown(0)) line_start = _camera.ScreenToWorldPoint(m_pos);
-        if (Input.GetMouseButton(0)) line_end = _camera.ScreenToWorldPoint(m_pos);
+        if (Input.GetMouseButtonDown(0)) line_start = _camera.ScreenToViewportPoint(m_pos);
+        if (Input.GetMouseButton(0)) line_end = _camera.ScreenToViewportPoint(m_pos);
 
         if (Input.GetMouseButtonUp(0)) OnRelease();
 
-        _lineRenderer.SetPosition(0, line_start);
-        _lineRenderer.SetPosition(1, line_end);
+        _lineRenderer.SetPosition(0, _camera.ViewportPointToRay(line_start).GetPoint(_camera.nearClipPlane));
+        _lineRenderer.SetPosition(1, _camera.ViewportPointToRay(line_end).GetPoint(_camera.nearClipPlane));
     }
+
+    [SerializeField] private GameObject debug_cube;
 
     private void OnRelease()
     {
-        var world_plane = new Plane(line_start, line_end, line_end + _camera.transform.forward * 500);
-        var center = _camera.transform.position / 3;
+        // create a ray from the start and end points
+        var start_ray = _camera.ViewportPointToRay(line_start);
+        var end_ray = _camera.ViewportPointToRay(line_end);
 
-        var plane = ConvertToObjectToWorld(world_plane, _camera.transform);
+        // get the start and end of the line aligned to the near clipping plane
+        var start = start_ray.GetPoint(_camera.nearClipPlane);
+        var end = end_ray.GetPoint(_camera.nearClipPlane);
+        var depth = end_ray.direction.normalized;
 
-        plane_transform.up = world_plane.normal;
-        plane_transform.position = center;
+        // Get the tangent of the plane
+        var tangent = (end - start).normalized;
+
+        // get the normal vector
+        var normal = Vector3.Cross(depth, tangent);
+
+        // create the plane
+        var plane = new Plane();
 
         // I know...
         var objects = FindObjectsOfType<GameObject>();
@@ -64,32 +75,36 @@ public class Slicer : MonoBehaviour
         // for each object check 
         foreach (var obj in objects)
         {
+            // filter tag
             if (obj.CompareTag("Ground")) continue;
-            
+
+            // transform the normal
+            var transformed_normal = ((Vector3)(obj.transform.localToWorldMatrix.transpose * normal)).normalized;
+
+            // set the plane in the objects local space
+            plane.SetNormalAndPosition(transformed_normal, obj.transform.InverseTransformPoint(start));
+
             // check that we have the correct components
             if (!TryGetMeshComponents(obj, out var filter, out var renderer)) continue;
 
-            // 
-            var local_plane = ConvertToWorldToLocal(plane, obj.transform);
-
             // check plane is intersecting the mesh
-            if (!MeshCutter.PlaneIntersectsMesh(local_plane, filter.mesh, obj.transform)) continue;
+            if (!MeshCutter.PlaneIntersectsMesh(plane, filter.mesh, obj.transform)) continue;
 
             // cut the mesh and out the 2 new meshes 
             MeshCutter.SplitMeshWithPlane(obj.transform, plane, filter.mesh, out var mesh1, out var mesh2);
 
             // use the new meshes to create new GameObjects
             var t1 = CreateCutGameObject(obj, mesh1);
-            t1.position += world_plane.normal * .05f;
+            t1.position += plane.normal * .05f;
             var t2 = CreateCutGameObject(obj, mesh2);
-            t2.position -= world_plane.normal * .05f;
+            t2.position -= plane.normal * .05f;
 
             Destroy(obj.gameObject);
         }
 
         // hide line 
-/*        line_start = Vector3.one * 999f;
-        line_end = Vector3.one * 999f;*/
+        line_start = Vector3.one * 999f;
+        line_end = Vector3.one * 999f;
     }
 
     private Plane ConvertToObjectToWorld(Plane objectPlane, Transform objectTransform)
