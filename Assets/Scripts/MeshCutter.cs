@@ -222,39 +222,6 @@ public class MeshCutter
         mesh2.RecalculateNormals();
     }
 
-    private static void GroupPoints(Plane plane, Vector3 v0, Vector3 v1, Vector3 v2, out Vector3 sv, out Vector3 pv1, out Vector3 pv2)
-    {
-        var v0_side = plane.GetSide(v0);
-        var v1_side = plane.GetSide(v1);
-        var v2_side = plane.GetSide(v2);
-
-        sv = Vector3.zero;
-        pv1 = Vector3.zero;
-        pv2 = Vector3.zero;
-
-        if (v0_side == v1_side)
-        {
-            sv = v2;
-            pv1 = v0;
-            pv2 = v1;
-        }
-
-        if (v1_side == v2_side)
-        {
-            sv = v0;
-            pv1 = v1;
-            pv2 = v2;
-        }
-
-        if (v2_side == v0_side)
-        {
-            sv = v1;
-            pv1 = v2;
-            pv2 = v0;
-        }
-
-    }
-
     private static void CalculateTrianglePlaneIntersections(Vector3 v0, Vector3 v1, Vector3 v2, Plane plane, out Vector3 p0, out Vector3 p1, out Vector3 p2)
     {
         p0 = Vector3.zero;
@@ -309,24 +276,6 @@ public class MeshCutter
         }
 
         return false;
-    }
-
-    private static bool TriangleIntersectsPlaneInObjectSpace(Plane plane, Vector3 v0, Vector3 v1, Vector3 v2, Matrix4x4 worldToObjectMatrix)
-    {
-        // Transform the plane from world space to object space
-        Plane planeInObjectSpace = TransformPlaneToMatrix(plane, worldToObjectMatrix);
-
-        // Perform the intersection test between the transformed plane and the triangle in object space
-        return TriangleIntersectsPlane(planeInObjectSpace, v0, v1, v2);
-    }
-
-    private static Plane TransformPlaneToMatrix(Plane plane, Matrix4x4 matrix)
-    {
-        // Transform the plane's normal and distance components by the matrix
-        Vector3 normal = matrix.MultiplyVector(plane.normal).normalized;
-        float distance = plane.distance - Vector3.Dot(plane.normal, matrix.MultiplyPoint(Vector3.zero));
-
-        return new Plane(normal, distance);
     }
 
     private static bool TriangleIntersectsPlane(Plane plane, Vector3 v0, Vector3 v1, Vector3 v2)
