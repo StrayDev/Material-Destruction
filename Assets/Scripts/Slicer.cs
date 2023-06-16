@@ -88,10 +88,10 @@ public class Slicer : MonoBehaviour
             if (!TryGetMeshComponents(obj, out var filter, out var renderer)) continue;
 
             // check plane is intersecting the mesh
-            if (!MeshCutter.PlaneIntersectsMesh(plane, filter.mesh, obj.transform)) continue;
+            if (!MeshCutter.PlaneIntersectsMesh(plane, filter.mesh)) continue;
 
             // cut the mesh and out the 2 new meshes 
-            MeshCutter.SplitMeshWithPlane(obj.transform, plane, filter.mesh, out var mesh1, out var mesh2);
+            MeshCutter.SplitMeshWithPlane(plane, filter.mesh, out var mesh1, out var mesh2);
 
             // use the new meshes to create new GameObjects
             var t1 = CreateCutGameObject(obj, mesh1);

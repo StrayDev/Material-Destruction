@@ -7,7 +7,7 @@ public class MeshCutter
 {
     //
 
-    public static void SplitMeshWithPlane(Transform target, Plane plane, Mesh mesh, out Mesh mesh1, out Mesh mesh2)
+    public static void SplitMeshWithPlane(Plane plane, Mesh mesh, out Mesh mesh1, out Mesh mesh2)
     {
         // allocate meshes 
         mesh1 = new Mesh();
@@ -258,7 +258,7 @@ public class MeshCutter
     }
 
 
-    public static bool PlaneIntersectsMesh(Plane plane, Mesh mesh, Transform target)
+    public static bool PlaneIntersectsMesh(Plane plane, Mesh mesh)
     {
         var vertices = mesh.vertices;
         var triangles = mesh.triangles;
