@@ -96,6 +96,7 @@ public class Slicer : MonoBehaviour
             // use the new meshes to create new GameObjects
             var t1 = CreateCutGameObject(obj, mesh1);
             t1.position += plane.normal * .01f;
+
             var t2 = CreateCutGameObject(obj, mesh2);
             t2.position -= plane.normal * .01f;
 

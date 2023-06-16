@@ -39,9 +39,6 @@ public class MeshCutter
         // keep all of th eintersecting pairs to create the fill
         var intersection_pairs = new List<Vector3>();
 
-        // 
-        //Plane planeInObjectSpace = TransformPlaneToMatrix(plane, target.worldToLocalMatrix);
-
         // Iterate over each triangle in the mesh
         for (var i = 0; i < triangles.Length; i += 3)
         {
@@ -244,17 +241,17 @@ public class MeshCutter
         if (result2) p2 = CalculateIntersectionPoint(v2, v0, plane);
     }
 
-    private static Vector3 CalculateIntersectionPoint(Vector3 vertex1, Vector3 vertex2, Plane plane)
+    private static Vector3 CalculateIntersectionPoint(Vector3 v1, Vector3 v2, Plane plane)
     {
-        Vector3 lineDirection = vertex2 - vertex1;
-        float lineMagnitude = lineDirection.magnitude;
-        Vector3 lineDirectionNormalized = lineDirection / lineMagnitude;
+        Vector3 line_direction = v2 - v1;
+        float line_magnitude = line_direction.magnitude;
+        Vector3 line_direction_normalized = line_direction / line_magnitude;
 
-        float distance = plane.GetDistanceToPoint(vertex1);
-        float dotProduct = Vector3.Dot(lineDirectionNormalized, plane.normal);
+        float distance = plane.GetDistanceToPoint(v1);
+        float dot_product = Vector3.Dot(line_direction_normalized, plane.normal);
 
-        float intersectionDistance = -distance / dotProduct;
-        return vertex1 + lineDirectionNormalized * intersectionDistance;
+        float intersectionDistance = -distance / dot_product;
+        return v1 + line_direction_normalized * intersectionDistance;
     }
 
 
